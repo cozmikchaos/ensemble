@@ -51,7 +51,10 @@ export async function makeReport(source:Room) {
   if(['paragraph','heading','listItem','tableRow','blockquote'].includes(node.type)){if(x>48)flush();y-=4;}
   if(node.type==='tableCell')write(' | ');
  }
- line('ensemble++',26,true,blue);line('CLASS PARTICIPATION REPORT',9,true);y-=12;line(room.name,20,true);
+ line('ensemble++',26,true,blue);
+ // Draw the complete heading together so PDF viewers preserve word spacing.
+ page.drawText('Class participation report',{x:48,y,size:11,font:bold,color:ink});flush(18);
+ y-=12;line(room.name,20,true);
  line(new Date(room.createdAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric',timeZone:'America/New_York'}));line(`Session ${room.code} | Exported ${new Date().toISOString()}`,9);y-=15;
  const students=[...room.students.values()].sort((a,b)=>a.name.localeCompare(b.name));const responses=room.rounds.reduce((n,r)=>n+r.answers.size,0);const denominator=students.length*room.rounds.length;
  line('Class overview',15,true);line(`${students.length} students | ${room.rounds.length} rounds | ${responses} responses`);line(`Participation: ${denominator?Math.round(responses/denominator*100):0}% of possible responses`);line(`Total points awarded: ${students.reduce((n,s)=>n+s.points,0)}`);y-=12;
