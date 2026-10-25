@@ -1,10 +1,10 @@
 # Ensemble
 
-A real-time classroom participation app built with Next.js App Router, TypeScript, Tailwind, shadcn-style Radix buttons, Socket.IO, OpenAI, Zod, and pdf-lib. No accounts, authentication provider, database, or persistent classroom storage.
+A real-time classroom participation app built with Next.js App Router, TypeScript, Tailwind, shadcn-style Radix buttons, Supabase Realtime, OpenAI, Zod, and pdf-lib. No user accounts. Shared classroom state is stored in Supabase and commands run in Next.js server routes.
 
 ## Run
 
-Requires Node.js 20.9+ and pnpm (or npm).
+Requires Node.js 22 and pnpm (or npm).
 
 ```sh
 pnpm install
@@ -36,18 +36,16 @@ pnpm start
 
 ## Temporary data and access
 
-All classroom state lives only in the custom Node server's memory. A server restart, crash, redeployment, or teacher ending the session permanently deletes it. Exported PDFs are downloaded to the teacher's device; the server retains no report files. No idle expiration runs. Closing a browser does not end a class. Keep the teacher tab: its sessionStorage reconnect capability is required to regain controls. Losing that capability has no account-based recovery.
+Classroom state is stored in Supabase until the teacher ends the session. Server restarts and deployments do not delete it. Exported PDFs download to the teacher’s device. Keep the teacher tab: its sessionStorage capability is required to regain controls. Losing that capability has no account-based recovery.
 
-This intentionally has no identity verification: anyone with a class code can initially join under an unused name. Teacher can rename or remove roster entries; removal deletes that student's responses and scoring. Never treat participation points as verified identity. Opaque random capabilities protect existing entries and teacher controls from other participants; they are session ownership tokens, not user accounts. Never share or log them. Student payloads exclude the roster and other students' answers. The anonymous response list excludes student identifiers; only the selected response exposes its name to the teacher; reports and roster contain participation aggregates only.
+This intentionally has no identity verification: anyone with a class code can initially join under an unused name. Teacher can rename or remove roster entries; removal deletes that student's responses and scoring. Never treat participation points as verified identity. Opaque random capabilities protect existing entries and teacher controls from other participants; they are session ownership tokens, not user accounts. Never share or log them. Student payloads exclude the roster and other students' answers. The anonymous response list excludes student identifiers; only the selected response exposes its name to the teacher; reports include each student’s responses for every round.
 
 Participation = submitted answers / (current roster size × questions started). Students joining late count against every question in this simple session metric. Empty denominators display 0%. PDF built-in fonts replace unsupported non-Latin characters with `?`; extend font embedding for a multilingual deployment.
 
 ## Deployment
 
-Deploy **one long-running Node.js process** with `pnpm build` and `pnpm start`, HTTPS, and WebSocket proxy support. For a Vercel frontend connected to this server, follow DEPLOY.md. Do not run the in-memory backend on multiple replicas: each process has isolated memory. Bind to `0.0.0.0` (default); set `PORT` as needed. Configure your proxy to forward Host and WebSocket Upgrade headers. Socket.IO accepts the server’s own origin and exact origins configured in ALLOWED_ORIGINS. In-memory request throttling limits each connection to 35 events per 10 seconds; sessions cap at 100 students and 200 rounds, with 200 active sessions per process. Add infrastructure-level connection/IP limits for an internet-facing deployment.
-
-The custom server owns Socket.IO and Next.js. Classroom state is never passed to a Next API route or written to disk. Credentials from earlier project directions are not used. No third-party analytics are included.
+Deploy on Vercel with Supabase using [DEPLOY.md](DEPLOY.md). No separate paid server is needed. Server routes validate opaque session capabilities, use shared database rate limits, and commit changes with optimistic concurrency checks. Public database access is disabled; broadcasts contain no classroom data. `server.ts` is the previous local Socket.IO implementation and is not used by the current app.
 
 ## Formatted answers
 
-Students can use the toolbar for bold, italics, lists, LaTeX equations, and up to two PNG/JPEG pictures. The live preview, response board, and selected response render formatting safely without raw HTML or remote image URLs. Answers allow 4,000 characters. Pictures are resized and re-encoded as JPEG in the browser and validated again on the server; all picture data remains in session memory (approximately 28 MB total encoded picture limit per session). AI analysis receives answer text, equations, and attached pictures; students should avoid including personal information in uploaded pictures.
+Students can use the toolbar for bold, italics, lists, LaTeX equations, and up to two PNG/JPEG pictures. The live preview, response board, and selected response render formatting safely without raw HTML or remote image URLs. Answers allow 4,000 characters. Pictures are resized and re-encoded as JPEG in the browser and validated again on the server; pictures are stored with classroom data in Supabase (3 MB total serialized classroom limit). AI analysis receives answer text, equations, and attached pictures; students should avoid including personal information in uploaded pictures.

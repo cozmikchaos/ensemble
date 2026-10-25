@@ -1,43 +1,17 @@
-# Deploy Ensemble with a Vercel frontend
+# Deploy ensemble++ on Vercel + Supabase
 
-Vercel serves the website. A single running Node service keeps the temporary classroom state and Socket.IO connections, generates PDFs, and calls OpenAI. No database is required. Vercel Functions now support WebSockets, but function instance memory is not shared or durable across connections; it cannot provide this app's classroom state guarantees by itself.
+No separate Node host or paid Render plan is required. Supabase Free and Vercel Hobby are subject to their usage limits; OpenAI API usage is billed separately.
 
-## 1. Upload the source to a private GitHub repository
+1. In your Supabase project SQL editor, run `supabase/schema.sql`. The tables have RLS enabled and deny anonymous/client access. Only the server secret can access them.
+2. Import this GitHub repository in Vercel using the Next.js preset.
+3. Add `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY` as production environment variables. Add `OPENAI_API_KEY` to enable AI analysis. Never prefix secrets with `NEXT_PUBLIC_`.
+4. Deploy. The browser fetches only the public URL/key from `/api/classroom`; commands run through protected server-side handlers. Supabase Realtime broadcasts contain invalidation signals only.
+5. Test teacher and student in separate tabs, then export the report before ending the class.
 
-Use the supplied source ZIP or this project folder. Do not upload `.env.local`, `node_modules`, `.next`, or `tmp`. The ZIP excludes them and does not contain your API key.
+Classroom data now persists in Supabase until the teacher ends the session. Server restarts and frontend redeployments do not delete it. The no-account flow uses random teacher/student capabilities stored in each browser tab. Keep the teacher tab to preserve access. There is no automatic expiry.
 
-## 2. Deploy the live server on Render
+Storage is limited to 3 MB of serialized state per classroom to keep Vercel responses within its payload limit. Pictures count against this limit. PDF downloads are limited to 4.3 MB. Online presence can take up to 75 seconds to update after a tab closes. A 5-second refresh fallback recovers missed Realtime messages.
 
-In Render, choose **New → Blueprint** and select that repository. `render.yaml` supplies the configuration.
+## Local verification
 
-- The blueprint uses **Starter**, a paid continuously running service. Review Render's price before confirming. It has one instance and automatic deployments disabled to avoid resetting a class on every push. A free sleeping service can discard the in-memory session during inactivity.
-- Enter your `OPENAI_API_KEY` as the backend's secret environment variable.
-- For `ALLOWED_ORIGINS`, initially enter `https://placeholder.invalid`. After deploying Vercel, replace this with your exact Vercel production URL, e.g. `https://your-ensemble.vercel.app`, with no trailing slash.
-- Copy the backend URL shown by Render, e.g. `https://ensemble-live-example.onrender.com`.
-- Open its `/healthz` URL; it should return `{"status":"ok"}`.
-
-The backend also serves the full website, so its URL can be used directly if you need to start a class before connecting Vercel.
-
-## 3. Deploy the frontend on Vercel
-
-Choose **Add New → Project**, import the same repository, and keep the detected **Next.js** preset.
-
-Add this environment variable before deploying:
-
-```text
-NEXT_PUBLIC_SOCKET_URL=https://YOUR-LIVE-SERVER.onrender.com
-```
-
-Use the actual backend URL. Do not add your OpenAI key to the frontend; the backend is the only service that needs it.
-
-Deploy, then set Render's `ALLOWED_ORIGINS` to the exact Vercel production origin and restart that backend **before creating any classroom sessions**. You can allow multiple exact origins separated by commas. Arbitrary Vercel preview deployments are intentionally not allowed. If the backend URL changes, update `NEXT_PUBLIC_SOCKET_URL` and redeploy the frontend; Next.js embeds public variables at build time.
-
-## 4. Check before class
-
-Open the Vercel URL in two browser tabs. Create a teacher session in one and join as a student in the other. Start a question, submit a response, close submissions, select it, award points, and export the PDF. Share the Vercel URL and six-digit code with students.
-
-Keep exactly one backend instance. Restarting, redeploying, crashing, or ending a session deletes all its temporary data. Export before those actions. Frontend-only deployments do not deliberately reset the backend, but refreshing an old page may be needed after a UI update.
-
-## Local development
-
-Leave `NEXT_PUBLIC_SOCKET_URL` and `ALLOWED_ORIGINS` blank and run `pnpm dev`. The frontend and Socket.IO server share the same URL, as before.
+Copy `.env.example` to `.env.local`, supply project credentials, then run `pnpm install`, `pnpm dev`. Use `pnpm test` for unit tests and `TEST_URL=http://localhost:3000 pnpm test:integration` for a real backend test with synthetic records that are removed afterward.
