@@ -8,5 +8,7 @@ test('cross-origin classroom access requires an exact allowed frontend',()=>{
  assert.equal(originAllowed('https://ensemble-school.vercel.app.evil.test','live.onrender.com',origins),false);
  assert.equal(originAllowed('https://ensemble-school.vercel.app/path','live.onrender.com',origins),false);
  assert.equal(originAllowed('http://localhost:3000','localhost:3000',[]),true);
+ assert.equal(originAllowed('http://127.0.0.1:3000','127.0.0.1:3000',[]),true);
+ assert.equal(originAllowed('http://127.0.0.1:3001','127.0.0.1:3000',[]),false);
  assert.equal(originAllowed('null','localhost:3000',[]),false);
 });

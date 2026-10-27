@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { database, readRoom, mutateRoom, notifyRoom } from '@/lib/supabase-server';
 import { ClassroomStore } from '@/lib/rooms';
+import { originAllowed } from '@/lib/origins';
 import { restoreRoom, serializeRoom } from '@/lib/room-storage';
 import { submissionSchema } from '@/lib/content';
 import { normalizeImages } from '@/lib/images';
@@ -37,7 +38,7 @@ function fingerprint(room:ReturnType<ClassroomStore['room']>,round:ReturnType<Cl
 export async function POST(req:NextRequest){
   try{
     if(!ready())throw new Error('Online classroom setup is not complete yet.');
-    if(req.headers.get('origin')&&req.headers.get('origin')!==req.nextUrl.origin)throw new Error('This request must come from the classroom website.');
+    if(!originAllowed(req.headers.get('origin')??undefined,req.headers.get('host')??undefined,[]))throw new Error('This request must come from the classroom website.');
     const raw=await req.text();if(Buffer.byteLength(raw)>1500000)throw new Error('Your answer is too large. Use smaller pictures.');
     const input=z.object({event:z.enum(['create','join','resume','state','heartbeat','start','close','select','reveal','submit','award','rename','remove','analyze','report','leave','end']),data:z.unknown().optional(),credentials:credentials.nullable().optional()}).parse(JSON.parse(raw));
     const event=input.event;let c=input.credentials;const data=input.data??{};
